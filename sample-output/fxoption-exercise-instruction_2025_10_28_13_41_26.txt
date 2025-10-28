@@ -1,0 +1,52 @@
+{
+  "primitiveInstruction" : {
+    "quantityChange" : {
+      "change" : [ {
+        "quantity" : [ {
+          "value" : {
+            "value" : 0
+          }
+        } ]
+      } ]
+    },
+    "transfer" : {
+      "transferState" : [ {
+        "transfer" : {
+          "quantity" : {
+            "value" : 1000
+          },
+          "settlementDate" : {
+            "adjustedDate" : {
+              "value" : "2025-10-30"
+            }
+          },
+          "payerReceiver" : {
+            "payerPartyReference" : {
+              "value" : {
+                "partyId" : [ {
+                  "identifier" : {
+                    "value" : "ClientId"
+                  }
+                } ]
+              }
+            },
+            "receiverPartyReference" : {
+              "value" : {
+                "partyId" : [ {
+                  "identifier" : {
+                    "value" : "DealerId"
+                  }
+                } ]
+              }
+            }
+          },
+          "transferExpression" : {
+            "scheduledTransfer" : {
+              "transferType" : "Exercise"
+            }
+          }
+        }
+      } ]
+    }
+  }
+}

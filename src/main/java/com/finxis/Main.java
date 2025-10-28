@@ -40,6 +40,7 @@ import cdm.product.template.metafields.ReferenceWithMetaPayout;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.finxis.data.InputData;
+import com.finxis.lifecycle.LifecycleEvents;
 import com.finxis.models.*;
 import com.finxis.product.BuildProduct;
 import com.finxis.trade.CreateTrade;
@@ -81,6 +82,9 @@ public class Main {
         System.out.println("CDM Bond Demo");
 
         Main main = new Main();
+
+
+
         InputData inputData = new InputData();
         BuildProduct buildProduct = new BuildProduct();
         CreateTrade  createTrade = new CreateTrade();
@@ -114,6 +118,8 @@ public class Main {
                         .setIdentifierValue("1000")))
                 .build();
 
+        Workflow workflow = new Workflow.WorkflowBuilderImpl();
+
         WorkflowStep executionWorkflowStep = WorkflowStep.builder()
                                 .setEventIdentifier(List.of(workflowIdentifier))
                                 .setWorkflowState(WorkflowState.builder()
@@ -124,13 +130,10 @@ public class Main {
                         .setGlobalKey("execution-id-1000"))
                 .build();
 
+        workflow.toBuilder().addSteps(executionWorkflowStep).build();
 
 
-        Workflow workflow = Workflow.builder()
-                .setSteps(List.of(executionWorkflowStep))
-                .build();
-
-        String workFlowJson = RosettaObjectMapper.getNewRosettaObjectMapper().writerWithDefaultPrettyPrinter().writeValueAsString(workflow);
+        String workFlowJson = RosettaObjectMapper.getNewRosettaObjectMapper().writerWithDefaultPrettyPrinter().writeValueAsString(executionWorkflowStep);
         System.out.println(workFlowJson);
         fileWriter.writeEventToFile(usTreasuryModel.isin + "-execution-workflow", eventDateTime, workFlowJson);
 
@@ -185,12 +188,10 @@ public class Main {
 
                 .build();
 
+        workflow.toBuilder().addSteps(correctWorkFlowStep).build();
 
-        workflow = Workflow.builder()
-                .setSteps(List.of(executionWorkflowStep,correctWorkFlowStep))
-                .build();
 
-        workFlowJson = RosettaObjectMapper.getNewRosettaObjectMapper().writerWithDefaultPrettyPrinter().writeValueAsString(workflow);
+        workFlowJson = RosettaObjectMapper.getNewRosettaObjectMapper().writerWithDefaultPrettyPrinter().writeValueAsString(correctWorkFlowStep);
         System.out.println(workFlowJson);
         fileWriter.writeEventToFile(usTreasuryModel.isin + "-correction-workflow", eventDateTime, workFlowJson);
 
@@ -244,13 +245,30 @@ public class Main {
                         .setGlobalKey("transfer-id-1002"))
                 .build();
 
-        workflow = Workflow.builder()
-                .setSteps(List.of(executionWorkflowStep,correctWorkFlowStep, transferWorkFlowStep))
+        workflow.toBuilder().addSteps(transferWorkFlowStep).build();
+
+        workFlowJson = RosettaObjectMapper.getNewRosettaObjectMapper().writerWithDefaultPrettyPrinter().writeValueAsString(transferWorkFlowStep);
+        System.out.println(workFlowJson);
+        fileWriter.writeEventToFile(usTreasuryModel.isin + "-transfer-workflow", eventDateTime, workFlowJson);
+
+        //Position Update
+
+        portfolio = Portfolio.builder()
+                .setPortfolioState(PortfolioState.builder()
+                        .setPositions(List.of(Position.builder()
+                                .setProduct(product)
+                                .addPriceQuantity(businessEvent.getAfter().get(0).getTrade()
+                                        .getTradeLot().get(0).getPriceQuantity()))))
                 .build();
+
+        portfolioJson = RosettaObjectMapper.getNewRosettaObjectMapper().writerWithDefaultPrettyPrinter().writeValueAsString(portfolio);
+        System.out.println(portfolioJson);
+        fileWriter.writeEventToFile( "portfolio-position-3", eventDateTime, portfolioJson);
+
 
         workFlowJson = RosettaObjectMapper.getNewRosettaObjectMapper().writerWithDefaultPrettyPrinter().writeValueAsString(workflow);
         System.out.println(workFlowJson);
-        fileWriter.writeEventToFile(usTreasuryModel.isin + "-transfer-workflow", eventDateTime, workFlowJson);
+        fileWriter.writeEventToFile(usTreasuryModel.isin + "-full-workflow", eventDateTime, workFlowJson);
 
 
         //US TIPS Example
@@ -324,9 +342,17 @@ public class Main {
         executionInstruction = createTrade.createFXOptionTrade(product, fxOptionTradeModel);
         businessEvent = cdmBusinessEvent.runExecutionBusinessEvent(executionInstruction);
 
+        Trade trade = businessEvent.getAfter().get(0).getTrade();
+
+        LifecycleEvents lfc = new LifecycleEvents();
+        Instruction inst = lfc.exerciseFxOption(trade);
+
+        String instructionJson = RosettaObjectMapper.getNewRosettaObjectMapper().writerWithDefaultPrettyPrinter().writeValueAsString(inst);
+        System.out.println(portfolioJson);
+        fileWriter.writeEventToFile( "fxoption-exercise-instruction", eventDateTime, instructionJson);
 
 
-        //FX Option
+        //OTC IRS
 
         IrsOtcModel irsOtcModel = inputData.setIrsOctData();
         product = buildProduct.createIrsOtcProduct(irsOtcModel);
